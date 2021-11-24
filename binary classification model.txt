@@ -1,0 +1,993 @@
+#install.packages("scmamp")
+#install.packages("DMwR")
+#xgboost
+#install.packages("xgboost")
+library(xgboost)
+#end
+#SVM
+#install.packages("e1071")
+library(e1071)
+#end
+#Random Forest
+#install.packages("randomForest")
+library(randomForest)
+#end
+#AdaBoost
+#install.packages("JOUSBoost")
+library(JOUSBoost)
+#install.packages("caret")
+library(caret)
+#end
+library(DMwR)
+
+
+
+creditCard <- read.table("1_default_of_credit_card_clients.txt",sep=",")
+online_shop <- read.table("2_online_shoppers_intention.txt",sep=",")
+southGerman <- read.table("3_SouthGermanCredit.txt",sep=",")
+
+# k-Fold Cross Validation
+k = 5
+
+# Cross Validation for creditCard 
+creditCard_fold = createFolds(1:nrow(creditCard),k,list=F)
+######################################################################
+# Adaboost for creditCard
+
+creditCard_adaboost_acc = rep(NA, k)
+creditCard_adaboost_bac = rep(NA, k)
+creditCard_adaboost_f1 = rep(NA, k)
+
+TPR_creditCard_adaboost = rep(NA, k)
+FPR_creditCard_adaboost = rep(NA, k)
+#which function will return the index 
+for (i in 1: k) {
+	index_creditCard_adaboost<-which(creditCard_fold==i)
+	train_creditCard_adaboost<-creditCard[-index_creditCard_adaboost,]
+	test_creditCard_adaboost<-creditCard[index_creditCard_adaboost,]
+    print(i)
+# Train for Adaboost (creditCard)
+	yy<-as.character(train_creditCard_adaboost[,ncol(train_creditCard_adaboost)])
+	yy[1:10]
+
+	yy[yy=="1"]= +1
+	yy[yy=="0"]= -1
+	y<-as.numeric(yy)
+	x<-as.matrix(train_creditCard_adaboost[,-ncol(train_creditCard_adaboost)])
+	class(x)<-"numeric"
+	fit<-adaboost(x,y)
+# Test for Adaboost (creditCard)
+	yyt<-as.character(test_creditCard_adaboost[,ncol(test_creditCard_adaboost)])
+	yyt[yyt=="1"]= +1
+	yyt[yyt=="0"]= -1
+	y_test<-as.numeric(yyt)
+	x_test<-as.matrix(test_creditCard_adaboost[,-ncol(test_creditCard_adaboost)])
+	class(x_test)<-"numeric"
+
+	pred<-predict(fit,x_test,type="response")
+	perf<-table(y_test,pred)
+	tn<-perf[1,1]
+	tp<-perf[2,2]
+	fp<-perf[1,2]
+	fn<-perf[2,1]
+	
+# For Plotting creditCard Adaboost
+    TPR_creditCard_adaboost[i] = tp/(tp+fn)
+    FPR_creditCard_adaboost[i] = fp/(fp+tn)
+	
+# Calculations for Performance Measure for creditCard Adaboost
+    creditCard_adaboost_acc[i] <-sum((tn+tp)/(tn+fp+fn+tp))
+    creditCard_adaboost_bac[i] <-sum(0.5*((tp/(tp+fn))+(tn/(tn+fp))))
+    creditCard_adaboost_f1[i] <-sum((2*tp)/(2*tp+fp+fn))
+}
+
+creditCard_adaboost_macc = mean(creditCard_adaboost_acc)
+print("creditCard Adaboost Mean Accuracy: ")
+print(creditCard_adaboost_macc)
+
+creditCard_adaboost_sdacc <- sd(creditCard_adaboost_acc)
+print("creditCard Adaboost Standard Deviation Accuracy: ")
+print(creditCard_adaboost_sdacc)
+
+creditCard_adaboost_mbac <- mean(creditCard_adaboost_bac)
+print("creditCard Adaboost Mean Balanced Accuracy: ")
+print(creditCard_adaboost_mbac)
+
+creditCard_adaboost_sdbac <- sd(creditCard_adaboost_bac)
+print("creditCard Adaboost Standard Deviation Balanced Accuracy: ")
+print(creditCard_adaboost_sdbac)
+
+creditCard_adaboost_mf1 = mean(creditCard_adaboost_f1)
+print("creditCard Adaboost Mean F1: ")
+print(creditCard_adaboost_mf1)
+
+creditCard_adaboost_sdf1 <- sd(creditCard_adaboost_f1)
+print("creditCard Adaboost Standard Deviation F1: ")
+print(creditCard_adaboost_sdf1)
+#############################################################
+# Random Forests for creditCard
+
+creditCard_randomforests_acc = rep(NA, k)
+creditCard_randomforests_bac = rep(NA, k)
+creditCard_randomforests_f1 = rep(NA, k)
+
+tpr_creditCard_randomforests = rep(NA, k)
+fpr_creditCard_randomforests = rep(NA, k)
+
+for (i in 1: k) {
+    index_creditCard_randomforests<-which(creditCard_fold==i)
+	train_creditCard_randomforests<-creditCard[-index_creditCard_randomforests,]
+	test_creditCard_randomforests<-creditCard[index_creditCard_randomforests,]    
+    
+    # Train for Random Forests (creditCard)
+    y<-as.factor((train_creditCard_randomforests[,ncol(train_creditCard_randomforests)]))
+	x<-train_creditCard_randomforests[,-ncol(train_creditCard_randomforests)]
+	fit<-randomForest(x,y)
+    
+    # Test for Random Forests (creditCard)
+    y_test<-as.factor(test_creditCard_randomforests[,ncol(test_creditCard_randomforests)])
+	x_test<-test_creditCard_randomforests[,-ncol(test_creditCard_randomforests)]
+    
+    pred<-predict(fit,x_test,type="class")
+	perf<-table(y_test,pred)
+	tn<-perf[1,1]
+	tp<-perf[2,2]
+	fp<-perf[1,2]
+	fn<-perf[2,1]
+    
+    # For plotting creditCard Random Forests
+    tpr_creditCard_randomforests[i] = tp/(tp+fn)
+    fpr_creditCard_randomforests[i] = fp/(fp+tn)
+    
+    # Calculations for Performance Measure for creditCard Random Forests
+	creditCard_randomforests_acc[i]<-sum((tn+tp)/(tn+fp+fn+tp))
+	creditCard_randomforests_bac[i]<-sum(0.5*((tp/(tp+fn))+(tn/(tn+fp))))
+	creditCard_randomforests_f1[i]<-sum((2*tp)/(2*tp+fp+fn))    
+}
+
+print("------------------------------------------------------------")
+
+creditCard_randomforests_macc = mean(creditCard_randomforests_acc)
+print("creditCard Random Forests Mean Accuracy: ")
+print(creditCard_randomforests_macc)
+
+creditCard_randomforests_sdacc <- sd(creditCard_randomforests_acc)
+print("creditCard Random Forests Standard Deviation Accuracy: ")
+print(creditCard_randomforests_sdacc)
+
+creditCard_randomforests_mbac <- mean(creditCard_randomforests_bac)
+print("creditCard Random Forests Mean Balanced Accuracy: ")
+print(creditCard_randomforests_mbac)
+
+creditCard_randomforests_sdbac <- sd(creditCard_randomforests_bac)
+print("creditCard Random Forests Standard Deviation Balanced Accuracy: ")
+print(creditCard_randomforests_sdbac)
+
+creditCard_randomforests_mf1 = mean(creditCard_randomforests_f1)
+print("creditCard Random Forests Mean F1: ")
+print(creditCard_randomforests_mf1)
+
+creditCard_randomforests_sdf1 <- sd(creditCard_randomforests_f1)
+print("creditCard Random Forests Standard Deviation F1: ")
+print(creditCard_randomforests_sdf1)
+############################################################3
+# SVM for creditCard 
+
+creditCard_svm_acc = rep(NA, k)
+creditCard_svm_bac = rep(NA, k)
+creditCard_svm_f1 = rep(NA, k)
+
+tpr_creditCard_svm = rep(NA, k)
+fpr_creditCard_svm = rep(NA, k)
+
+for (i in 1: k) {
+    index_creditCard_svm<-which(creditCard_fold==i)
+	train_creditCard_svm<-creditCard[-index_creditCard_svm,]
+	test_creditCard_svm<-creditCard[index_creditCard_svm,]
+    
+    # Train for SVM (creditCard)
+	yy<-as.character(train_creditCard_svm[,ncol(train_creditCard_svm)])
+	yy[yy=="1"]<- +1
+	yy[yy=="0"]<- -1
+	y<-as.factor(yy)
+	x<-train_creditCard_svm[,-ncol(train_creditCard_svm)]
+	fit<- svm(x,y,scale=TRUE)
+    
+    # Test for SVM (creditCard)
+    yy_test<-as.character(test_creditCard_svm[,ncol(test_creditCard_svm)])
+	yy_test[yy_test =="1"]<- +1
+	yy_test[yy_test =="0"]<- -1
+	y_test<-as.factor(yy_test)
+	x_test<-test_creditCard_svm[,-ncol(test_creditCard_svm)]
+    
+    pred<-predict(fit,x_test,type="class")
+	perf<-table(y_test,pred)
+	tn<-perf[1,1]
+	tp<-perf[2,2]
+	fp<-perf[1,2]
+	fn<-perf[2,1]
+    
+    # For plotting creditCard SVM
+    tpr_creditCard_svm[i] = tp/(tp+fn)
+    fpr_creditCard_svm[i] = fp/(fp+tn)
+    
+    # Calculations for Performance Measure for creditCard Random Forests
+	creditCard_svm_acc[i]<-sum((tn+tp)/(tn+fp+fn+tp))
+	creditCard_svm_bac[i]<-sum(0.5*((tp/(tp+fn))+(tn/(tn+fp))))
+	creditCard_svm_f1[i]<-sum((2*tp)/(2*tp+fp+fn))        
+}
+
+print("------------------------------------------------------------")
+
+creditCard_svm_macc = mean(creditCard_svm_acc)
+print("creditCard SVM Mean Accuracy: ")
+print(creditCard_svm_macc)
+
+creditCard_svm_sdacc <- sd(creditCard_svm_acc)
+print("creditCard SVM Standard Deviation Accuracy: ")
+print(creditCard_svm_sdacc)
+
+creditCard_svm_mbac <- mean(creditCard_svm_bac)
+print("creditCard SVM Mean Balanced Accuracy: ")
+print(creditCard_svm_mbac)
+
+creditCard_svm_sdbac <- sd(creditCard_svm_bac)
+print("creditCard SVM Standard Deviation Balanced Accuracy: ")
+print(creditCard_svm_sdbac)
+
+creditCard_svm_mf1 = mean(creditCard_svm_f1)
+print("creditCard SVM Mean F1: ")
+print(creditCard_svm_mf1)
+
+creditCard_svm_sdf1 <- sd(creditCard_svm_f1)
+print("creditCard SVM Standard Deviation F1: ")
+print(creditCard_svm_sdf1)
+########################################################
+# XGBoost for creditCard  
+
+creditCard_xgboost_acc = rep(NA, k)
+creditCard_xgboost_bac = rep(NA, k)
+creditCard_xgboost_f1 = rep(NA, k)
+
+tpr_creditCard_xgboost = rep(NA, k)
+fpr_creditCard_xgboost = rep(NA, k)
+
+for (i in 1: k) {
+	index_creditCard_xgboost<-which(creditCard_fold==i)
+	train_creditCard_xgboost<-creditCard[-index_creditCard_xgboost,]
+	test_creditCard_xgboost<-creditCard[index_creditCard_xgboost,]
+    
+    # Train for XGboost (creditCard)
+	yy<-as.character(train_creditCard_xgboost[,ncol(train_creditCard_xgboost)])
+	yy[yy=="1"]= +1
+	yy[yy=="0"]= 0
+	y<-as.numeric(yy)
+	x<-as.matrix(train_creditCard_xgboost[,-ncol(train_creditCard_xgboost)])
+	class(x)<-"numeric"
+	fit <- xgboost(data = x, label = y, nrounds = 5, objective="binary:hinge")
+	
+	# Test for XGboost (creditCard)
+	yyt<-as.character(test_creditCard_xgboost[,ncol(test_creditCard_xgboost)])
+	yyt[yyt=="1"]= +1
+	yyt[yyt=="0"]= 0
+	y_test<-as.numeric(yyt)
+	x_test<-as.matrix(test_creditCard_xgboost[,-ncol(test_creditCard_xgboost)])
+	class(x_test)<-"numeric"
+    
+    pred<-predict(fit,x_test)
+	perf<-table(y_test,pred)
+	tn<-perf[1,1]
+	tp<-perf[2,2]
+	fp<-perf[1,2]
+	fn<-perf[2,1]
+    
+    # For plotting creditCard XGboost
+    tpr_creditCard_xgboost[i] = tp/(tp+fn)
+    fpr_creditCard_xgboost[i] = fp/(fp+tn)
+    
+    # Calculations for Performance Measure for XGboost (creditCard)
+    creditCard_xgboost_acc[i] <-sum((tn+tp)/(tn+fp+fn+tp))
+    creditCard_xgboost_bac[i] <-sum(0.5*((tp/(tp+fn))+(tn/(tn+fp))))
+    creditCard_xgboost_f1[i] <-sum((2*tp)/(2*tp+fp+fn))
+}
+
+creditCard_xgboost_macc = mean(creditCard_xgboost_acc)
+print("creditCard XGboost Mean Accuracy: ")
+print(creditCard_xgboost_macc)
+
+creditCard_xgboost_sdacc <- sd(creditCard_xgboost_acc)
+print("creditCard XGboost Standard Deviation Accuracy: ")
+print(creditCard_xgboost_sdacc)
+
+creditCard_xgboost_mbac <- mean(creditCard_xgboost_bac)
+print("creditCard XGboost Mean Balanced Accuracy: ")
+print(creditCard_xgboost_mbac)
+
+creditCard_xgboost_sdbac <- sd(creditCard_xgboost_bac)
+print("creditCard XGboost Standard Deviation Balanced Accuracy: ")
+print(creditCard_xgboost_sdbac)
+
+creditCard_xgboost_mf1 = mean(creditCard_xgboost_f1)
+print("creditCard XGboost Mean F1: ")
+print(creditCard_xgboost_mf1)
+
+creditCard_xgboost_sdf1 <- sd(creditCard_xgboost_f1)
+print("creditCard XGboost Standard Deviation F1: ")
+print(creditCard_xgboost_sdf1)
+
+
+
+southGerman_folds = createFolds(1:nrow(southGerman),k,list=F)
+##############################################3
+# Adaboost for southGerman  
+
+southGerman_adaboost_acc = rep(NA, k)
+southGerman_adaboost_bac = rep(NA, k)
+southGerman_adaboost_f1 = rep(NA, k)
+
+tpr_southGerman_adaboost = rep(NA, k)
+fpr_southGerman_adaboost = rep(NA, k)
+
+for (i in 1: k) {
+	index_southGerman_adaboost<-which(southGerman_folds==i)
+	train_southGerman_adaboost<-southGerman[-index_southGerman_adaboost,]
+	test_southGerman_adaboost<-southGerman[index_southGerman_adaboost,]
+    
+    # Train for Adaboost (southGerman)
+	yy<-as.character(train_southGerman_adaboost[,ncol(train_southGerman_adaboost)])
+	yy[yy=="1"]= +1
+	yy[yy=="0"]= -1
+	y<-as.numeric(yy)
+	x<-as.matrix(train_southGerman_adaboost[,-ncol(train_southGerman_adaboost)])
+	class(x)<-"numeric"
+	fit<-adaboost(x,y)
+
+	# Test for Adaboost (southGerman)
+	yyt<-as.character(test_southGerman_adaboost[,ncol(test_southGerman_adaboost)])
+	yyt[yyt=="1"]= 1
+	yyt[yyt=="0"]= -1
+	y_test<-as.numeric(yyt)
+	x_test<-as.matrix(test_southGerman_adaboost[,-ncol(test_southGerman_adaboost)])
+	class(x_test)<-"numeric"
+    
+    pred<-predict(fit,x_test,type="response")
+	perf<-table(y_test,pred)
+	tn<-perf[1,1]
+	tp<-perf[2,2]
+	fp<-perf[1,2]
+	fn<-perf[2,1]
+    
+    # For plotting southGerman adaboost
+    tpr_southGerman_adaboost[i] = tp/(tp+fn)
+    fpr_southGerman_adaboost[i] = fp/(fp+tn)
+    
+    # Calculations for Performance Measure for southGerman Adaboost
+    southGerman_adaboost_acc[i] <-sum((tn+tp)/(tn+fp+fn+tp))
+    southGerman_adaboost_bac[i] <-sum(0.5*((tp/(tp+fn))+(tn/(tn+fp))))
+    southGerman_adaboost_f1[i] <-sum((2*tp)/(2*tp+fp+fn))
+}
+
+print("------------------------------------------------------------")
+
+southGerman_adaboost_macc = mean(southGerman_adaboost_acc)
+print("southGerman Adaboost Mean Accuracy: ")
+print(southGerman_adaboost_macc)
+
+southGerman_adaboost_sdacc <- sd(southGerman_adaboost_acc)
+print("southGerman Adaboost Standard Deviation Accuracy: ")
+print(southGerman_adaboost_sdacc)
+
+southGerman_adaboost_mbac <- mean(southGerman_adaboost_bac)
+print("southGerman Adaboost Mean Balanced Accuracy: ")
+print(southGerman_adaboost_mbac)
+
+southGerman_adaboost_sdbac <- sd(southGerman_adaboost_bac)
+print("southGerman Adaboost Standard Deviation Balanced Accuracy: ")
+print(southGerman_adaboost_sdbac)
+
+southGerman_adaboost_mf1 = mean(southGerman_adaboost_f1)
+print("southGerman Adaboost Mean F1: ")
+print(southGerman_adaboost_mf1)
+
+southGerman_adaboost_sdf1 <- sd(southGerman_adaboost_f1)
+print("southGerman Adaboost Standard Deviation F1: ")
+print(southGerman_adaboost_sdf1)
+#############################################
+# Random Forests for southGerman
+
+southGerman_randomforests_acc = rep(NA, k)
+southGerman_randomforests_bac = rep(NA, k)
+southGerman_randomforests_f1 = rep(NA, k)
+
+tpr_southGerman_randomforests = rep(NA, k)
+fpr_southGerman_randomforests = rep(NA, k)
+
+for (i in 1: k) {
+    index_southGerman_randomforests<-which(southGerman_folds==i)
+	train_southGerman_randomforests<-southGerman[-index_southGerman_randomforests,]
+	test_southGerman_randomforests<-southGerman[index_southGerman_randomforests,]
+
+    # Train for Random Forests (southGerman)
+    y<-as.factor((train_southGerman_randomforests[,ncol(train_southGerman_randomforests)]))
+	x<-train_southGerman_randomforests[,-ncol(train_southGerman_randomforests)]
+	fit<-randomForest(x,y)
+
+    # Test for Random Forests (southGerman)
+    y_test<-as.factor(test_southGerman_randomforests[,ncol(test_southGerman_randomforests)])
+	x_test<-test_southGerman_randomforests[,-ncol(test_southGerman_randomforests)]
+
+    pred<-predict(fit,x_test,type="class")
+	perf<-table(y_test,pred)
+	tn<-perf[1,1]
+	tp<-perf[2,2]
+	fp<-perf[1,2]
+	fn<-perf[2,1]
+    
+    # For plotting southGerman random forests
+    tpr_southGerman_randomforests[i] = tp/(tp+fn)
+    fpr_southGerman_randomforests[i] = fp/(fp+tn)
+
+    # Calculations for Performance Measure for southGerman Random Forests
+	southGerman_randomforests_acc[i]<-sum((tn+tp)/(tn+fp+fn+tp))
+	southGerman_randomforests_bac[i]<-sum(0.5*((tp/(tp+fn))+(tn/(tn+fp))))
+	southGerman_randomforests_f1[i]<-sum((2*tp)/(2*tp+fp+fn))
+}
+
+print("------------------------------------------------------------")
+
+southGerman_randomforests_macc = mean(southGerman_randomforests_acc)
+print("southGerman Random Forests Mean Accuracy: ")
+print(southGerman_randomforests_macc)
+
+southGerman_randomforests_sdacc <- sd(southGerman_randomforests_acc)
+print("southGerman Random Forests Standard Deviation Accuracy: ")
+print(southGerman_randomforests_sdacc)
+
+southGerman_randomforests_mbac <- mean(southGerman_randomforests_bac)
+print("southGerman Random Forests Mean Balanced Accuracy: ")
+print(southGerman_randomforests_mbac)
+
+southGerman_randomforests_sdbac <- sd(southGerman_randomforests_bac)
+print("southGerman Random Forests Standard Deviation Balanced Accuracy: ")
+print(southGerman_randomforests_sdbac)
+
+southGerman_randomforests_mf1 = mean(southGerman_randomforests_f1)
+print("southGerman Random Forests Mean F1: ")
+print(southGerman_randomforests_mf1)
+
+southGerman_randomforests_sdf1 <- sd(southGerman_randomforests_f1)
+print("southGerman Random Forests Standard Deviation F1: ")
+print(southGerman_randomforests_sdf1)
+######################################################
+# XGBoost for southGerman
+
+southGerman_xgboost_acc = rep(NA, k)
+southGerman_xgboost_bac = rep(NA, k)
+southGerman_xgboost_f1 = rep(NA, k)
+
+tpr_southGerman_xgboost = rep(NA, k)
+fpr_southGerman_xgboost = rep(NA, k)
+
+for (i in 1: k) {
+	index_southGerman_xgboost<-which(southGerman_folds==i)
+	train_southGerman_xgboost<-southGerman[-index_southGerman_xgboost,]
+	test_southGerman_xgboost<-southGerman[index_southGerman_xgboost,]
+    
+    # Train for XGboost (southGerman)
+	yy<-as.character(train_southGerman_xgboost[,ncol(train_southGerman_xgboost)])
+	yy[yy=="1"]= 1
+	yy[yy=="0"]= 0
+	y<-as.numeric(yy)
+	x<-as.matrix(train_southGerman_xgboost[,-ncol(train_southGerman_xgboost)])
+	class(x)<-"numeric"
+	fit <- xgboost(data = x, label = y, nrounds = 4, objective = "binary:hinge")
+	
+	# Test for XGboost (southGerman)
+	yyt<-as.character(test_southGerman_xgboost[,ncol(test_southGerman_xgboost)])
+	yyt[yyt=="positive"]= +1
+	yyt[yyt=="negative"]= 0
+	y_test<-as.numeric(yyt)
+	x_test<-as.matrix(test_southGerman_xgboost[,-ncol(test_southGerman_xgboost)])
+	class(x_test)<-"numeric"
+    
+    pred<-predict(fit,x_test,type="response")
+	perf<-table(y_test,pred)
+	tn<-perf[1,1]
+	tp<-perf[2,2]
+	fp<-perf[1,2]
+	fn<-perf[2,1]
+    
+    # For plotting southGerman xgboost
+    tpr_southGerman_xgboost[i] = tp/(tp+fn)
+    fpr_southGerman_xgboost[i] = fp/(fp+tn)
+    
+    # Calculations for Performance Measure for southGerman xgboost
+    southGerman_xgboost_acc[i] <-sum((tn+tp)/(tn+fp+fn+tp))
+    southGerman_xgboost_bac[i] <-sum(0.5*((tp/(tp+fn))+(tn/(tn+fp))))
+    southGerman_xgboost_f1[i] <-sum((2*tp)/(2*tp+fp+fn))
+}
+
+
+print("------------------------------------------------------------")
+
+southGerman_xgboost_macc = mean(southGerman_xgboost_acc)
+print("southGerman XGboost Mean Accuracy: ")
+print(southGerman_xgboost_macc)
+
+southGerman_xgboost_sdacc <- sd(southGerman_xgboost_acc)
+print("southGerman XGboost Standard Deviation Accuracy: ")
+print(southGerman_xgboost_sdacc)
+
+southGerman_xgboost_mbac <- mean(southGerman_xgboost_bac)
+print("southGerman XGboost Mean Balanced Accuracy: ")
+print(southGerman_xgboost_mbac)
+
+southGerman_xgboost_sdbac <- sd(southGerman_xgboost_bac)
+print("southGerman XGboost Standard Deviation Balanced Accuracy: ")
+print(southGerman_xgboost_sdbac)
+
+southGerman_xgboost_mf1 = mean(southGerman_xgboost_f1)
+print("southGerman XGboost Mean F1: ")
+print(southGerman_xgboost_mf1)
+
+southGerman_xgboost_sdf1 <- sd(southGerman_xgboost_f1)
+print("southGerman XGboost Standard Deviation F1: ")
+print(southGerman_xgboost_sdf1)
+################################################
+# SVM for southGerman
+
+southGerman_svm_acc = rep(NA, k)
+southGerman_svm_bac = rep(NA, k)
+southGerman_svm_f1 = rep(NA, k)
+
+tpr_southGerman_svm = rep(NA, k)
+fpr_southGerman_svm = rep(NA, k)
+
+for (i in 1: k) {
+    index_southGerman_svm<-which(southGerman_folds==i)
+	train_southGerman_svm<-southGerman[-index_southGerman_svm,]
+	test_southGerman_svm<-southGerman[index_southGerman_svm,]
+    
+    # Train for SVM (southGerman)
+	yy<-as.character(train_southGerman_svm[,ncol(train_southGerman_svm)])
+	yy[yy=="1"]<-+1
+	yy[yy=="0"]<--1
+	y<-as.factor(yy)
+	x<-train_southGerman_svm[,-ncol(train_southGerman_svm)]
+	fit<- svm(x,y,scale=TRUE)
+    
+    # Test for SVM (southGerman)
+    yy_test<-as.character(test_southGerman_svm[,ncol(test_southGerman_svm)])
+	yy_test[yy_test =="1"]<- +1
+	yy_test[yy_test =="0"]<- -1
+	y_test<-as.factor(yy_test)
+	x_test<-test_southGerman_svm[,-ncol(test_southGerman_svm)]
+    
+    pred<-predict(fit,x_test,type="class")
+	perf<-table(y_test,pred)
+	tn<-perf[1,1]
+	tp<-perf[2,2]
+	fp<-perf[1,2]
+	fn<-perf[2,1]
+    
+    # For plotting southGerman svm
+    tpr_southGerman_svm[i] = tp/(tp+fn)
+    fpr_southGerman_svm[i] = fp/(fp+tn)
+    
+    # Calculations for Performance Measure for southGerman svm
+	southGerman_svm_acc[i]<-sum((tn+tp)/(tn+fp+fn+tp))
+	southGerman_svm_bac[i]<-sum(0.5*((tp/(tp+fn))+(tn/(tn+fp))))
+	southGerman_svm_f1[i]<-sum((2*tp)/(2*tp+fp+fn))        
+}
+
+print("------------------------------------------------------------")
+
+southGerman_svm_macc = mean(southGerman_svm_acc)
+print("southGerman SVM Mean Accuracy: ")
+print(southGerman_svm_macc)
+
+southGerman_svm_sdacc <- sd(southGerman_svm_acc)
+print("southGerman SVM Standard Deviation Accuracy: ")
+print(southGerman_svm_sdacc)
+
+southGerman_svm_mbac <- mean(southGerman_svm_bac)
+print("southGerman SVM Mean Balanced Accuracy: ")
+print(southGerman_svm_mbac)
+
+southGerman_svm_sdbac <- sd(southGerman_svm_bac)
+print("southGerman SVM Standard Deviation Balanced Accuracy: ")
+print(southGerman_svm_sdbac)
+
+southGerman_svm_mf1 = mean(southGerman_svm_f1)
+print("southGerman SVM Mean F1: ")
+print(southGerman_svm_mf1)
+
+southGerman_svm_sdf1 <- sd(southGerman_svm_f1)
+print("southGerman SVM Standard Deviation F1: ")
+print(southGerman_svm_sdf1)
+
+
+online_shop_folds = createFolds(1:nrow(online_shop),k,list=F)
+###########################################################3
+# Adaboost for online_shop  
+
+online_shop_adaboost_acc = rep(NA, k)
+online_shop_adaboost_bac = rep(NA, k)
+online_shop_adaboost_f1 = rep(NA, k)
+
+tpr_online_shop_adaboost = rep(NA, k)
+fpr_online_shop_adaboost = rep(NA, k)
+
+for (i in 1: k) {
+	index_online_shop_adaboost<-which(online_shop_folds==i)
+	train_online_shop_adaboost<-online_shop[-index_online_shop_adaboost,]
+	test_online_shop_adaboost<-online_shop[index_online_shop_adaboost,]
+
+    # Train for Adaboost (online_shop)
+	yy<-as.character(train_online_shop_adaboost[,ncol(train_online_shop_adaboost)])
+	yy[yy=="1"]= +1
+	yy[yy=="0"]= -1
+	y<-as.numeric(yy)
+	x<-as.matrix(train_online_shop_adaboost[,-ncol(train_online_shop_adaboost)])
+	class(x)<-"numeric"
+	fit<-adaboost(x,y)
+
+	# Test for Adaboost (online_shop)
+	yyt<-as.character(test_online_shop_adaboost[,ncol(test_online_shop_adaboost)])
+	yyt[yyt=="1"]= +1
+	yyt[yyt=="0"]= -1
+	y_test<-as.numeric(yyt)
+	x_test<-as.matrix(test_online_shop_adaboost[,-ncol(test_online_shop_adaboost)])
+	class(x_test)<-"numeric"
+
+    pred<-predict(fit,x_test)
+	perf<-table(y_test,pred)
+	tn<-perf[1,1]
+	tp<-perf[2,2]
+	fp<-perf[1,2]
+	fn<-perf[2,1]
+    
+    # For plotting online_shop adaboost
+    tpr_online_shop_adaboost[i] = tp/(tp+fn)
+    fpr_online_shop_adaboost[i] = fp/(fp+tn)
+
+    # Calculations for Performance Measure for online_shop Adaboost
+    online_shop_adaboost_acc[i] <-sum((tn+tp)/(tn+fp+fn+tp))
+    online_shop_adaboost_bac[i] <-sum(0.5*((tp/(tp+fn))+(tn/(tn+fp))))
+    online_shop_adaboost_f1[i] <-sum((2*tp)/(2*tp+fp+fn))
+}
+
+print("--------------------------------------------------------------")
+
+online_shop_adaboost_macc = mean(online_shop_adaboost_acc)
+print("online_shop Adaboost Mean Accuracy: ")
+print(online_shop_adaboost_macc)
+
+online_shop_adaboost_sdacc <- sd(online_shop_adaboost_acc)
+print("online_shop Adaboost Standard Deviation Accuracy: ")
+print(online_shop_adaboost_sdacc)
+
+online_shop_adaboost_mbac <- mean(online_shop_adaboost_bac)
+print("online_shop Adaboost Mean Balanced Accuracy: ")
+print(online_shop_adaboost_mbac)
+
+online_shop_adaboost_sdbac <- sd(online_shop_adaboost_bac)
+print("online_shop Adaboost Standard Deviation Balanced Accuracy: ")
+print(online_shop_adaboost_sdbac)
+
+online_shop_adaboost_mf1 = mean(online_shop_adaboost_f1)
+print("online_shop Adaboost Mean F1: ")
+print(online_shop_adaboost_mf1)
+
+online_shop_adaboost_sdf1 <- sd(online_shop_adaboost_f1)
+print("online_shop Adaboost Standard Deviation F1: ")
+print(online_shop_adaboost_sdf1)
+##########################################################3
+# Random Forests for online_shop 
+
+online_shop_randomforests_acc = rep(NA, k)
+online_shop_randomforests_bac = rep(NA, k)
+online_shop_randomforests_f1 = rep(NA, k)
+
+tpr_online_shop_randomforests = rep(NA, k)
+fpr_online_shop_randomforests = rep(NA, k)
+
+for (i in 1: k) {
+    index_online_shop_randomforests<-which(online_shop_folds==i)
+	train_online_shop_randomforests<-online_shop[-index_online_shop_randomforests,]
+	test_online_shop_randomforests<-online_shop[index_online_shop_randomforests,]
+
+    # Train for Random Forests (online_shop)
+    y<-as.factor((train_online_shop_randomforests[,ncol(train_online_shop_randomforests)]))
+	x<-train_online_shop_randomforests[,-ncol(train_online_shop_randomforests)]
+	fit<-randomForest(x,y)
+
+    # Test for Random Forests (online_shop)
+    y_test<-as.factor(test_online_shop_randomforests[,ncol(test_online_shop_randomforests)])
+	x_test<-test_online_shop_randomforests[,-ncol(test_online_shop_randomforests)]
+
+    pred<-predict(fit,x_test,type="class")
+	perf<-table(y_test,pred)
+	tn<-perf[1,1]
+	tp<-perf[2,2]
+	fp<-perf[1,2]
+	fn<-perf[2,1]
+    
+    # For plotting online_shop random forests
+    tpr_online_shop_randomforests[i] = tp/(tp+fn)
+    fpr_online_shop_randomforests[i] = fp/(fp+tn)
+
+    # Calculations for Performance Measure for online_shop Random Forests
+	online_shop_randomforests_acc[i]<-sum((tn+tp)/(tn+fp+fn+tp))
+	online_shop_randomforests_bac[i]<-sum(0.5*((tp/(tp+fn))+(tn/(tn+fp))))
+	online_shop_randomforests_f1[i]<-sum((2*tp)/(2*tp+fp+fn))
+}
+
+print("--------------------------------------------------------")
+
+online_shop_randomforests_macc = mean(online_shop_randomforests_acc)
+print("online_shop Random Forests Mean Accuracy: ")
+print(online_shop_randomforests_macc)
+
+online_shop_randomforests_sdacc <- sd(online_shop_randomforests_acc)
+print("online_shop Random Forests Standard Deviation Accuracy: ")
+print(online_shop_randomforests_sdacc)
+
+online_shop_randomforests_mbac <- mean(online_shop_randomforests_bac)
+print("online_shop Random Forests Mean Balanced Accuracy: ")
+print(online_shop_randomforests_mbac)
+
+online_shop_randomforests_sdbac <- sd(online_shop_randomforests_bac)
+print("online_shop Random Forests Standard Deviation Balanced Accuracy: ")
+print(online_shop_randomforests_sdbac)
+
+online_shop_randomforests_mf1 = mean(online_shop_randomforests_f1)
+print("online_shop Random Forests Mean F1: ")
+print(online_shop_randomforests_mf1)
+
+online_shop_randomforests_sdf1 <- sd(online_shop_randomforests_f1)
+print("online_shop Random Forests Standard Deviation F1: ")
+print(online_shop_randomforests_sdf1)
+####################################################3
+# SVM for online_shop 
+
+online_shop_svm_acc = rep(NA, k)
+online_shop_svm_bac = rep(NA, k)
+online_shop_svm_f1 = rep(NA, k)
+
+tpr_online_shop_svm = rep(NA, k)
+fpr_online_shop_svm = rep(NA, k)
+
+for (i in 1: k) {
+    index_online_shop_svm<-which(online_shop_folds==i)
+	train_online_shop_svm<-online_shop[-index_online_shop_svm,]
+	test_online_shop_svm<-online_shop[index_online_shop_svm,]
+    
+    # Train for SVM (online_shop)
+	yy<-as.character(train_online_shop_svm[,ncol(train_online_shop_svm)])
+	yy[yy=="1"]<-+1
+	yy[yy=="0"]<--1
+	y<-as.numeric(yy)
+	x<-train_online_shop_svm[,-ncol(train_online_shop_svm)]
+	fit<- svm(x,y,scale=TRUE)
+    
+    # Test for SVM (online_shop)
+    yy_test<-as.character(test_online_shop_svm[,ncol(test_online_shop_svm)])
+	yy_test[yy_test =="1"]<- +1
+	yy_test[yy_test =="0"]<- -1
+	y_test<-as.numeric(yy_test)
+	x_test<-test_online_shop_svm[,-ncol(test_online_shop_svm)]
+    
+    pred<-predict(fit,x_test,type="class")
+	perf<-table(y_test,pred)
+	tn<-perf[1,1]
+	tp<-perf[2,2]
+	fp<-perf[1,2]
+	fn<-perf[2,1]
+    
+    # For plottting online_shop svm
+    tpr_online_shop_svm[i] = tp/(tp+fn)
+    fpr_online_shop_svm[i] = fp/(fp+tn)
+    
+    # Calculations for Performance Measure for online_shop Random Forests
+	online_shop_svm_acc[i]<-sum((tn+tp)/(tn+fp+fn+tp))
+	online_shop_svm_bac[i]<-sum(0.5*((tp/(tp+fn))+(tn/(tn+fp))))
+	online_shop_svm_f1[i]<-sum((2*tp)/(2*tp+fp+fn))        
+}
+
+print("------------------------------------------------------------")
+
+online_shop_svm_macc = mean(online_shop_svm_acc)
+print("online_shop SVM Mean Accuracy: ")
+print(online_shop_svm_macc)
+
+online_shop_svm_sdacc <- sd(online_shop_svm_acc)
+print("online_shop SVM Standard Deviation Accuracy: ")
+print(online_shop_svm_sdacc)
+
+online_shop_svm_mbac <- mean(online_shop_svm_bac)
+print("online_shop SVM Mean Balanced Accuracy: ")
+print(online_shop_svm_mbac)
+
+online_shop_svm_sdbac <- sd(online_shop_svm_bac)
+print("online_shop SVM Standard Deviation Balanced Accuracy: ")
+print(online_shop_svm_sdbac)
+
+online_shop_svm_mf1 = mean(online_shop_svm_f1)
+print("online_shop SVM Mean F1: ")
+print(online_shop_svm_mf1)
+
+online_shop_svm_sdf1 <- sd(online_shop_svm_f1)
+print("online_shop SVM Standard Deviation F1: ")
+print(online_shop_svm_sdf1)
+###################################################
+# XGBoost for online_shop 
+
+online_shop_xgboost_acc = rep(NA, k)
+online_shop_xgboost_bac = rep(NA, k)
+online_shop_xgboost_f1 = rep(NA, k)
+
+tpr_online_shop_xgboost = rep(NA, k)
+fpr_online_shop_xgboost = rep(NA, k)
+
+for (i in 1: k) {
+	index_online_shop_xgboost<-which(online_shop_folds==i)
+	train_online_shop_xgboost<-online_shop[-index_online_shop_xgboost,]
+	test_online_shop_xgboost<-online_shop[index_online_shop_xgboost,]
+    
+    # Train for Adaboost (online_shop)
+	yy<-as.character(train_online_shop_xgboost[,ncol(train_online_shop_xgboost)])
+	yy[yy=="1"]= +1
+	yy[yy=="0"]= 0
+	y<-as.numeric(yy)
+	x<-as.matrix(train_online_shop_xgboost[,-ncol(train_online_shop_xgboost)])
+	class(x)<-"numeric"
+	fit <- xgboost(data = x, label = y, nrounds = 5, objective="binary:hinge")
+	
+	# Test for Adaboost (online_shop)
+	yyt<-as.character(test_online_shop_xgboost[,ncol(test_online_shop_xgboost)])
+	yyt[yyt=="1"]= +1
+	yyt[yyt=="0"]= 0
+	y_test<-as.factor(yyt)
+	x_test<-as.matrix(test_online_shop_xgboost[,-ncol(test_online_shop_xgboost)])
+	class(x_test)<-"factor"
+    
+    pred<-predict(fit,x_test,type="response")
+	perf<-table(y_test,pred)
+	tn<-perf[1,1]
+	tp<-perf[2,2]
+	fp<-perf[1,2]
+	fn<-perf[2,1]
+    
+    # For plotting online_shop xgboost
+    tpr_online_shop_xgboost[i] = tp/(tp+fn)
+    fpr_online_shop_xgboost[i] = fp/(fp+tn)
+    
+    # Calculations for Performance Measure for online_shop Adaboost
+    online_shop_xgboost_acc[i] <-sum((tn+tp)/(tn+fp+fn+tp))
+    online_shop_xgboost_bac[i] <-sum(0.5*((tp/(tp+fn))+(tn/(tn+fp))))
+    online_shop_xgboost_f1[i] <-sum((2*tp)/(2*tp+fp+fn))
+}
+
+print("------------------------------------------------------------")
+
+online_shop_xgboost_macc = mean(online_shop_xgboost_acc)
+print("online_shop XGboost Mean Accuracy: ")
+print(online_shop_xgboost_macc)
+
+online_shop_xgboost_sdacc <- sd(online_shop_xgboost_acc)
+print("online_shop XGboost Standard Deviation Accuracy: ")
+print(online_shop_xgboost_sdacc)
+
+online_shop_xgboost_mbac <- mean(online_shop_xgboost_bac)
+print("online_shop XGboost Mean Balanced Accuracy: ")
+print(online_shop_xgboost_mbac)
+
+online_shop_xgboost_sdbac <- sd(online_shop_xgboost_bac)
+print("online_shop XGboost Standard Deviation Balanced Accuracy: ")
+print(online_shop_xgboost_sdbac)
+
+online_shop_xgboost_mf1 = mean(online_shop_xgboost_f1)
+print("online_shop XGboost Mean F1: ")
+print(online_shop_xgboost_mf1)
+
+online_shop_xgboost_sdf1 <- sd(online_shop_xgboost_f1)
+print("online_shop XGboost Standard Deviation F1: ")
+print(online_shop_xgboost_sdf1)
+
+
+
+
+print("---------------------------- Mean Accuracy --------------------------------")
+mean_accuracy = data.frame(
+    Adaboost = c(creditCard_adaboost_macc, southGerman_adaboost_macc, online_shop_adaboost_mbac),
+    Random_Forests = c(creditCard_randomforests_macc, southGerman_randomforests_macc, online_shop_adaboost_mbac),
+    SVM = c(creditCard_svm_macc, southGerman_svm_macc, online_shop_adaboost_mbac),
+    XGboost = c(creditCard_xgboost_macc, southGerman_xgboost_macc, online_shop_adaboost_mbac)
+)
+
+print(postHocTest(data = mean_accuracy, test = 'friedman', correct = 'bergmann'))
+
+print("---------------------------- Mean Balanced Accuracy --------------------------------")
+mean_balanced_accuracy = data.frame(
+    Adaboost = c(creditCard_adaboost_mbac, southGerman_adaboost_mbac, online_shop_adaboost_mbac),
+    Random_Forests = c(creditCard_randomforests_mbac, southGerman_randomforests_mbac, online_shop_adaboost_mbac),
+    SVM = c(creditCard_svm_mbac, southGerman_svm_mbac, online_shop_adaboost_mbac),
+    XGboost = c(creditCard_xgboost_mbac, southGerman_xgboost_mbac, online_shop_adaboost_mbac)
+)
+
+print(postHocTest(data = mean_balanced_accuracy, test = 'friedman', correct = 'bergmann'))
+
+print("---------------------------- Mean F1 --------------------------------")
+mean_f1 = data.frame(
+    Adaboost = c(creditCard_adaboost_mf1, southGerman_adaboost_mf1, online_shop_adaboost_mbac),
+    Random_Forests = c(creditCard_randomforests_mf1, southGerman_randomforests_mf1, online_shop_adaboost_mbac),
+    SVM = c(creditCard_svm_mf1, southGerman_svm_mf1, online_shop_adaboost_mbac),
+    XGboost = c(creditCard_xgboost_mf1, southGerman_xgboost_mf1, online_shop_adaboost_mbac)
+)
+
+print(postHocTest(data = mean_f1, test = 'friedman', correct = 'bergmann'))
+
+# Plotting for creditCard
+mfpr_creditCard_adaboost = mean(FPR_creditCard_adaboost)
+mtpr_creditCard_adaboost = mean(TPR_creditCard_adaboost)
+
+mfpr_creditCard_svm = mean(FPR_creditCard_svm)
+mtpr_creditCard_svm = mean(TPR_creditCard_svm)
+
+mfpr_creditCard_xgboost = mean(FPR_creditCard_xgboost)
+mtpr_creditCard_xgboost = mean(TPR_creditCard_xgboost)
+
+mfpr_creditCard_randomforests = mean(FPR_creditCard_randomforests)
+mtpr_creditCard_randomforests = mean(TPR_creditCard_randomforests)
+
+plot(c(0, mfpr_creditCard_adaboost, 1), c(0, mtpr_creditCard_adaboost, 1), type = 'l', xlab='MFPR', ylab='MTPR', main="creditCard")
+abline(a = 0, b = 1, col='red')
+lines(c(0, mfpr_creditCard_svm, 1), c(0, mtpr_creditCard_svm, 1), col='blue')
+lines(c(0, mfpr_creditCard_xgboost, 1), c(0, mtpr_creditCard_xgboost, 1), col='green')
+lines(c(0, mfpr_creditCard_randomforests, 1), c(0, mtpr_creditCard_randomforests, 1), col='orange')
+legend(0.8, 0.2, c("Adaboost\t\t\t","SVM\t\t\t", "XGBoost\t\t\t", "R. Forests\t\t\t"),fill=c("black","blue", "green", "orange"))
+
+# Plotting for southGerman
+mfpr_southGerman_adaboost = mean(fpr_southGerman_adaboost)
+mtpr_southGerman_adaboost = mean(tpr_southGerman_adaboost)
+
+mfpr_southGerman_svm = mean(fpr_southGerman_svm)
+mtpr_southGerman_svm = mean(tpr_southGerman_svm)
+
+mfpr_southGerman_xgboost = mean(fpr_southGerman_xgboost)
+mtpr_southGerman_xgboost = mean(tpr_southGerman_xgboost)
+
+mfpr_southGerman_randomforests = mean(fpr_southGerman_randomforests)
+mtpr_southGerman_randomforests = mean(tpr_southGerman_randomforests)
+
+plot(c(0, mfpr_southGerman_adaboost, 1), c(0, mtpr_southGerman_adaboost, 1), type = 'l', xlab='MFPR', ylab='MTPR', main="southGerman")
+abline(a = 0, b = 1, col='red')
+lines(c(0, mfpr_southGerman_svm, 1), c(0, mtpr_southGerman_svm, 1), col='blue')
+lines(c(0, mfpr_southGerman_xgboost, 1), c(0, mtpr_southGerman_xgboost, 1), col='green')
+lines(c(0, mfpr_southGerman_randomforests, 1), c(0, mtpr_southGerman_randomforests, 1), col='orange')
+legend(0.8, 0.2, c("Adaboost\t\t\t","SVM\t\t\t", "XGBoost\t\t\t", "R. Forests\t\t\t"),fill=c("black","blue", "green", "orange"))
+
+
+# Plotting for online_shop
+mfpr_online_shop_adaboost = mean(fpr_online_shop_adaboost)
+mtpr_online_shop_adaboost = mean(tpr_online_shop_adaboost)
+
+mfpr_online_shop_svm = mean(fpr_online_shop_svm)
+mtpr_online_shop_svm = mean(tpr_online_shop_svm)
+
+mfpr_online_shop_xgboost = mean(fpr_online_shop_xgboost)
+mtpr_online_shop_xgboost = mean(tpr_online_shop_xgboost)
+
+mfpr_online_shop_randomforests = mean(fpr_online_shop_randomforests)
+mtpr_online_shop_randomforests = mean(tpr_online_shop_randomforests)
+
+plot(c(0, mfpr_online_shop_adaboost, 1), c(0, mtpr_online_shop_adaboost, 1), type = 'l', xlab='MFPR', ylab='MTPR', main="online_shop")
+abline(a = 0, b = 1, col='red')
+lines(c(0, mfpr_online_shop_svm, 1), c(0, mtpr_online_shop_svm, 1), col='blue')
+lines(c(0, mfpr_online_shop_xgboost, 1), c(0, mtpr_online_shop_xgboost, 1), col='green')
+lines(c(0, mfpr_online_shop_randomforests, 1), c(0, mtpr_online_shop_randomforests, 1), col='orange')
+legend(0.8, 0.2, c("Adaboost\t\t\t","SVM\t\t\t", "XGBoost\t\t\t", "R. Forests\t\t\t"),fill=c("black","blue", "green", "orange"))
+
+
+
